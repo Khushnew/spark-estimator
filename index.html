@@ -1,0 +1,2011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Spark Estimator" />
+  <meta name="theme-color" content="#111827" />
+  <title>Spark Repair Estimator</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png" />
+  <link rel="icon" type="image/png" href="icons/icon-192.png" />
+  <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src='https://unpkg.com/tesseract.js@4.1.1/dist/tesseract.min.js'></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            spark: { 50: '#FFF7ED', 100: '#FFEDD5', 200: '#FED7AA', 300: '#FDBA74', 400: '#FB923C', 500: '#F97316', 600: '#EA580C', 700: '#C2410C', 800: '#9A3412', 900: '#7C2D12' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overscroll-behavior: none; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; }
+    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+    .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .scroll-x::-webkit-scrollbar { display: none; }
+    .scroll-y { overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+    .scroll-y::-webkit-scrollbar { display: none; }
+    .safe-bottom { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+    .pt-safe { padding-top: max(0px, env(safe-area-inset-top)); }
+    .safe-top { padding-top: max(8px, env(safe-area-inset-top)); }
+
+    /* Animations */
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+    @keyframes slideOutRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
+    @keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    @keyframes popIn { 0% { transform: scale(0); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+    @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    @keyframes toastIn { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes toastOut { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
+    @keyframes pulse-ring { 0% { transform: scale(0.8); opacity: 0.5; } 100% { transform: scale(1.3); opacity: 0; } }
+    @keyframes countUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .anim-fade { animation: fadeIn 0.3s ease; }
+    .anim-slide-up { animation: slideUp 0.35s cubic-bezier(.4,0,.2,1); }
+    .anim-scale { animation: scaleIn 0.25s cubic-bezier(.4,0,.2,1); }
+    .anim-pop { animation: popIn 0.3s cubic-bezier(.4,0,.2,1); }
+
+    /* Custom checkbox */
+    .check-btn { transition: all 0.2s cubic-bezier(.4,0,.2,1); }
+    .check-btn:active { transform: scale(0.88); }
+    .check-btn.checked { background: #EA580C; border-color: #EA580C; }
+
+    /* Card styles */
+    .item-card { transition: all 0.2s ease; }
+    .item-card.active { box-shadow: 0 0 0 1.5px #FDBA74; }
+
+    /* Group expand */
+    .group-body { transition: max-height 0.35s cubic-bezier(.4,0,.2,1), opacity 0.25s ease; overflow: hidden; }
+
+    /* Number input focus */
+    input:focus { outline: none; }
+
+    /* Toast */
+    .toast { animation: toastIn 0.35s cubic-bezier(.4,0,.2,1); }
+    .toast.out { animation: toastOut 0.25s ease forwards; }
+
+    /* Deal analyzer */
+    .deal-input { transition: all 0.2s ease; }
+    .deal-input:focus { box-shadow: 0 0 0 3px rgba(234,88,12,0.15); border-color: #EA580C; }
+
+    /* Profit badge pulse */
+    .profit-good { background: linear-gradient(135deg, #10B981, #059669); }
+    .profit-warn { background: linear-gradient(135deg, #F59E0B, #D97706); }
+    .profit-bad { background: linear-gradient(135deg, #EF4444, #DC2626); }
+
+    /* Side panel */
+    #side-panel { transition: transform 0.3s cubic-bezier(.4,0,.2,1); }
+    .panel-overlay { transition: opacity 0.3s ease; }
+
+    /* Bottom sheet modal */
+    .sheet-modal { transition: transform 0.3s cubic-bezier(.4,0,.2,1); }
+
+    /* Progress bar shimmer */
+    .progress-shimmer { background: linear-gradient(90deg, #EA580C 0%, #FB923C 50%, #EA580C 100%); background-size: 200% 100%; animation: shimmer 2s infinite; }
+
+    /* Photo thumbnail */
+    .photo-thumb { transition: transform 0.2s ease; }
+    .photo-thumb:active { transform: scale(0.95); }
+
+    /* Tab active indicator */
+    .tab-active { position: relative; }
+    .tab-active::after { content: ''; position: absolute; bottom: 0; left: 20%; right: 20%; height: 3px; background: #EA580C; border-radius: 3px 3px 0 0; }
+
+    /* Ocr scanning indicator */
+    .ocr-scan { position: relative; }
+    .ocr-scan::after { content: ''; position: absolute; inset: 0; border: 2px solid #EA580C; border-radius: 12px; animation: pulse-ring 1.5s infinite; pointer-events: none; }
+
+    /* Touch feedback */
+    .touch-btn { transition: transform 0.1s ease, background 0.15s ease; }
+    .touch-btn:active { transform: scale(0.97); }
+
+    /* Hide scrollbar for room tabs */
+    .room-tabs::-webkit-scrollbar { display: none; }
+    .room-tabs { scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-100">
+
+<!-- Toast container -->
+<div id="toast-container" class="fixed top-0 inset-x-0 z-[70] pt-safe pointer-events-none flex flex-col items-center gap-2 px-4"></div>
+
+<!-- Side panel overlay -->
+<div id="panel-overlay" class="fixed inset-0 bg-black/50 z-40 hidden panel-overlay opacity-0"></div>
+
+<!-- Side panel -->
+<div id="side-panel" class="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-white z-50 shadow-2xl -translate-x-full flex flex-col">
+  <div class="bg-gray-900 text-white px-4 pt-safe pb-4 flex-shrink-0">
+    <div class="flex justify-between items-center mt-3">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 bg-gradient-to-br from-spark-400 to-spark-600 rounded-lg flex items-center justify-center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <p class="font-bold text-lg">Projects</p>
+      </div>
+      <button id="close-panel-btn" class="text-gray-400 hover:text-white transition-colors text-xl leading-none p-1">&#10005;</button>
+    </div>
+  </div>
+  <div class="flex-1 overflow-y-auto scroll-y" id="panel-list"></div>
+  <div class="p-4 border-t border-gray-100 flex-shrink-0 safe-bottom bg-white">
+    <button id="new-project-btn" class="touch-btn w-full py-3.5 rounded-xl bg-gradient-to-r from-spark-500 to-spark-600 text-white font-semibold text-sm shadow-lg shadow-spark-500/25">+ New Project</button>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-modal" class="fixed inset-0 z-[60] hidden">
+  <div id="settings-bg" class="absolute inset-0 bg-black/60"></div>
+  <div class="absolute inset-x-0 bottom-0 pointer-events-auto">
+    <div class="bg-white rounded-t-2xl shadow-2xl max-h-[80vh] flex flex-col anim-slide-up">
+      <div class="px-5 pt-5 pb-3 flex justify-between items-center border-b border-gray-100 flex-shrink-0">
+        <div>
+          <h2 class="font-bold text-lg text-gray-900">Settings</h2>
+          <p class="text-xs text-gray-400 mt-0.5">Manage pricing and preferences</p>
+        </div>
+        <button id="settings-close" class="text-gray-400 hover:text-gray-600 transition-colors text-2xl leading-none px-2 py-1">&#10005;</button>
+      </div>
+      <div class="overflow-y-auto flex-1 px-5 py-5 safe-bottom space-y-6">
+        <!-- Price Schedule -->
+        <div>
+          <h3 class="font-semibold text-gray-800 mb-1">Price Schedule</h3>
+          <p class="text-sm text-gray-400 mb-3 leading-relaxed">Upload a CSV to update line-item prices. The <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono">id</code> and <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono">cost</code> columns are required.</p>
+          <div id="price-status" class="mb-3 px-4 py-3 rounded-xl text-sm bg-gray-50 text-gray-500 font-medium">Using default prices</div>
+          <div class="space-y-2">
+            <label class="w-full block cursor-pointer">
+              <span class="touch-btn block w-full py-3.5 rounded-xl bg-gradient-to-r from-spark-500 to-spark-600 text-white font-semibold text-sm text-center shadow-lg shadow-spark-500/25">Upload Updated Prices (CSV)</span>
+              <input type="file" accept=".csv,.CSV" id="price-csv-input" class="hidden" />
+            </label>
+            <button id="reset-prices-btn" class="touch-btn w-full py-3 rounded-xl text-red-500 text-sm font-semibold border-2 border-red-100 hover:bg-red-50 transition-colors hidden">Reset to Default Prices</button>
+          </div>
+        </div>
+        <!-- Deal Settings -->
+        <div class="border-t border-gray-100 pt-5">
+          <h3 class="font-semibold text-gray-800 mb-1">Deal Analyzer Defaults</h3>
+          <p class="text-sm text-gray-400 mb-3">Set your default deal parameters for quick analysis.</p>
+          <div class="space-y-3">
+            <div>
+              <label class="text-xs font-medium text-gray-500 mb-1 block">Holding Cost per Week</label>
+              <input id="holding-cost-input" type="number" placeholder="250" value="250"
+                class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:border-spark-500 transition-colors" />
+            </div>
+            <div>
+              <label class="text-xs font-medium text-gray-500 mb-1 block">Target Profit Margin (%)</label>
+              <input id="target-margin-input" type="number" placeholder="20" value="20"
+                class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:border-spark-500 transition-colors" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Generic Modal -->
+<div id="app-modal" class="fixed inset-0 z-[60] hidden">
+  <div id="modal-bg" class="absolute inset-0 bg-black/60"></div>
+  <div class="absolute inset-0 flex items-center justify-center p-5 pointer-events-none">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 pointer-events-auto anim-scale">
+      <h3 id="modal-title" class="font-bold text-gray-900 text-lg mb-1">Rename</h3>
+      <p id="modal-desc" class="text-sm text-gray-400 mb-4 hidden"></p>
+      <input id="modal-input" type="text"
+        class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:border-spark-500 transition-colors mb-4" />
+      <div class="flex gap-3">
+        <button id="modal-cancel" class="touch-btn flex-1 py-3 rounded-xl border-2 border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-colors">Cancel</button>
+        <button id="modal-confirm" class="touch-btn flex-1 py-3 rounded-xl bg-gradient-to-r from-spark-500 to-spark-600 text-white font-semibold shadow-lg shadow-spark-500/25">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Item Modal -->
+<div id="add-item-modal" class="fixed inset-0 z-[60] hidden">
+  <div id="add-item-bg" class="absolute inset-0 bg-black/60"></div>
+  <div class="absolute inset-0 flex items-end justify-center pointer-events-none">
+    <div class="bg-white rounded-t-2xl shadow-2xl w-full max-h-[85vh] flex flex-col pointer-events-auto anim-slide-up">
+      <div class="px-5 pt-5 pb-3 flex justify-between items-center border-b border-gray-100 flex-shrink-0">
+        <div>
+          <h3 class="font-bold text-lg text-gray-900">Add Custom Item</h3>
+          <p class="text-xs text-gray-400 mt-0.5">Create a new line item for this group</p>
+        </div>
+        <button id="add-item-close" class="text-gray-400 hover:text-gray-600 text-2xl leading-none px-2 py-1">&#10005;</button>
+      </div>
+      <div class="overflow-y-auto flex-1 px-5 py-4 safe-bottom space-y-4">
+        <div>
+          <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Item Name</label>
+          <input id="add-item-name" type="text" placeholder="e.g. Custom Cabinet Install"
+            class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:border-spark-500 transition-colors" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Unit Cost ($)</label>
+            <input id="add-item-cost" type="number" placeholder="0.00" min="0" step="0.01"
+              class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:border-spark-500 transition-colors" />
+          </div>
+          <div>
+            <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Unit Type</label>
+            <input id="add-item-unit" type="text" placeholder="e.g. sqft, ea., flat"
+              class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:border-spark-500 transition-colors" />
+          </div>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Minimum Cost (optional)</label>
+          <input id="add-item-min" type="number" placeholder="0" min="0" step="1"
+            class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:border-spark-500 transition-colors" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Notes (optional)</label>
+          <input id="add-item-notes" type="text" placeholder="e.g. Includes materials"
+            class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:border-spark-500 transition-colors" />
+        </div>
+        <button id="add-item-confirm" class="touch-btn w-full py-3.5 rounded-xl bg-gradient-to-r from-spark-500 to-spark-600 text-white font-semibold shadow-lg shadow-spark-500/25 mt-2">Add Item</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Deal Analyzer Modal -->
+<div id="deal-modal" class="fixed inset-0 z-[60] hidden">
+  <div id="deal-bg" class="absolute inset-0 bg-black/60"></div>
+  <div class="absolute inset-0 flex items-end justify-center pointer-events-none">
+    <div class="bg-white rounded-t-2xl shadow-2xl w-full max-h-[92vh] flex flex-col pointer-events-auto anim-slide-up">
+      <div class="px-5 pt-5 pb-3 flex justify-between items-center border-b border-gray-100 flex-shrink-0 bg-gradient-to-r from-gray-900 to-gray-800 rounded-t-2xl">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-gradient-to-br from-spark-400 to-spark-600 rounded-lg flex items-center justify-center">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div>
+            <h3 class="font-bold text-white text-lg">Deal Analyzer</h3>
+            <p class="text-xs text-gray-400">Calculate profit margin on this flip</p>
+          </div>
+        </div>
+        <button id="deal-close" class="text-gray-400 hover:text-white transition-colors text-2xl leading-none px-2 py-1">&#10005;</button>
+      </div>
+      <div class="overflow-y-auto flex-1 px-5 py-5 safe-bottom" id="deal-content">
+        <!-- Deal content rendered here -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Photo Viewer Modal -->
+<div id="photo-modal" class="fixed inset-0 z-[70] hidden bg-black/95 flex items-center justify-center">
+  <button id="photo-close" class="absolute top-4 right-4 text-white text-3xl z-10 p-2">&#10005;</button>
+  <img id="photo-viewer-img" src="" class="max-w-full max-h-full object-contain" />
+  <div id="photo-ocr-result" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-4 safe-bottom hidden">
+    <p class="text-xs text-gray-400 mb-1">Detected Serial Number:</p>
+    <p class="text-white font-mono text-sm" id="photo-ocr-text"></p>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app"></div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+
+const ALL_ITEMS = [
+  // Interior General
+  { id: 'ig-01', name: 'Refinish Hardwood Floor', cost: 2.35, unit: 'sqft', group: 'flooring' },
+  { id: 'ig-02', name: 'New Hardwoods 1.5"', cost: 10.00, unit: 'sqft', group: 'flooring' },
+  { id: 'ig-03', name: 'New Hardwoods 2"', cost: 4.75, unit: 'sqft', group: 'flooring' },
+  { id: 'ig-04', name: 'Hardwood Splicing', cost: 8.40, unit: 'sqft', group: 'flooring' },
+  { id: 'ig-05', name: 'Vinyl Plank', cost: 2.50, unit: 'sqft', group: 'flooring', notes: '$1.60-1.80/SF material' },
+  { id: 'ig-06', name: 'Carpet', cost: 1.90, unit: 'sqft', group: 'flooring' },
+  { id: 'ig-07', name: 'Interior Paint - 2 Tone', cost: 2.95, unit: 'sqft', group: 'paint-repair' },
+  { id: 'ig-08', name: 'Drywall Repair', cost: 900.00, unit: '1,000 sqft', group: 'paint-repair' },
+  { id: 'ig-09', name: 'Wallpaper Removal', cost: 250.00, unit: 'room', group: 'paint-repair' },
+  { id: 'ig-10', name: 'Interior Door - Hollow Slab', cost: 125.00, unit: 'ea.', group: 'doors' },
+  { id: 'ig-11', name: 'Interior Door Hardware', cost: 25.00, unit: 'ea.', group: 'doors' },
+  { id: 'ig-12', name: 'Bifold Door with Framing', cost: 400.00, unit: 'ea.', group: 'doors' },
+  { id: 'ig-13', name: 'Interior Door - Pre-hung', cost: 200.00, unit: 'ea.', group: 'doors' },
+  { id: 'ig-14', name: 'Front Entry Door', cost: 475.00, unit: 'ea.', group: 'doors', min: 500 },
+  { id: 'ig-15', name: 'Front Entry Door Hardware', cost: 80.00, unit: 'ea.', group: 'doors', min: 75, defaultQty: 1 },
+  { id: 'ig-16', name: 'Exterior Door Hardware', cost: 75.00, unit: 'handle', group: 'doors', defaultQty: 1 },
+  { id: 'ig-17', name: 'Exterior Insulated Side Door', cost: 500.00, unit: 'ea.', group: 'doors' },
+  { id: 'ig-18', name: 'Sliding Glass Door', cost: 1025.00, unit: 'ea.', group: 'doors' },
+  { id: 'ig-19', name: 'Trim Out (Casing, Crown, Baseboard)', cost: 3.75, unit: 'LF', group: 'misc', min: 500, defaultQty: 143 },
+  { id: 'ig-20', name: 'MISC / Punch List', cost: 2650.00, unit: 'flat', group: 'misc', defaultQty: 1 },
+  { id: 'ig-21', name: 'Finish Out Labor', cost: 1350.00, unit: 'flat', group: 'misc', defaultQty: 1 },
+  { id: 'ig-22', name: 'Light Fixtures', cost: 70.00, unit: '100 sqft', group: 'misc' },
+  { id: 'ig-23', name: 'Bedbug Spray / Heat Treat', cost: 475.00, unit: 'ea.', group: 'pest', min: 100 },
+  { id: 'ig-24', name: 'Termite Treatment', cost: 650.00, unit: 'ea.', group: 'pest' },
+  { id: 'ig-25', name: 'Demo', cost: 1375.00, unit: 'variable', group: 'misc', defaultQty: 1 },
+  { id: 'ig-26', name: 'Haul Off', cost: 725.00, unit: 'load', group: 'misc', defaultQty: 1, notes: '1-40yd dumpster per load' },
+  { id: 'ig-27', name: 'Final Cleaning', cost: 325.00, unit: 'flat', group: 'misc', min: 250, defaultQty: 1 },
+  { id: 'ig-28', name: 'Staging', cost: 0.90, unit: 'sqft', group: 'misc', notes: '45 days; +$500 if > 45 days' },
+
+  // Kitchen
+  { id: 'kt-01', name: 'Hinges and Pulls', cost: 275.00, unit: 'kitchen', group: 'cabinets' },
+  { id: 'kt-02', name: 'Cabinets Uppers', cost: 125.00, unit: 'LF', group: 'cabinets' },
+  { id: 'kt-03', name: 'Cabinets Lowers', cost: 150.00, unit: 'LF', group: 'cabinets' },
+  { id: 'kt-04', name: 'Cabinet Door Faces Only', cost: 80.00, unit: 'door', group: 'cabinets' },
+  { id: 'kt-05', name: 'Cabinets (Labor & Paint)', cost: 1100.00, unit: 'kitchen', group: 'cabinets' },
+  { id: 'kt-06', name: 'Granite + 4" Splash Guard', cost: 40.00, unit: 'LF', group: 'counters-tile', min: 1050 },
+  { id: 'kt-07', name: 'Backsplash', cost: 725.00, unit: 'house', group: 'counters-tile' },
+  { id: 'kt-08', name: 'Misc Woodwork', cost: 500.00, unit: 'variable', group: 'counters-tile' },
+  { id: 'kt-09', name: 'Tile - Large Areas', cost: 6.45, unit: 'sqft', group: 'counters-tile' },
+  { id: 'kt-10', name: 'Tile - Small Areas', cost: 10.00, unit: 'sqft', group: 'counters-tile' },
+  { id: 'kt-11', name: 'Undermount Kitchen Sink', cost: 325.00, unit: 'ea.', group: 'appliances' },
+  { id: 'kt-12', name: 'Microwave / Hood', cost: 500.00, unit: 'ea.', group: 'appliances' },
+  { id: 'kt-13', name: 'Range', cost: 725.00, unit: 'ea.', group: 'appliances' },
+  { id: 'kt-14', name: 'Wall Oven', cost: 1075.00, unit: 'ea.', group: 'appliances' },
+  { id: 'kt-15', name: 'Cooktop', cost: 550.00, unit: 'ea.', group: 'appliances' },
+  { id: 'kt-16', name: 'Dishwasher', cost: 575.00, unit: 'ea.', group: 'appliances' },
+  { id: 'kt-17', name: 'Fridge', cost: 1175.00, unit: 'ea.', group: 'appliances' },
+
+  // Bathroom
+  { id: 'ba-01', name: 'Granite ($/LF)', cost: 35.00, unit: 'LF', group: 'vanity' },
+  { id: 'ba-02', name: 'New Bottom Vanity', cost: 125.00, unit: 'LF', group: 'vanity' },
+  { id: 'ba-03', name: 'Home Depot Vanity w/ Sink (18")', cost: 225.00, unit: 'ea.', group: 'vanity' },
+  { id: 'ba-04', name: 'Toilet', cost: 150.00, unit: 'ea.', group: 'vanity' },
+  { id: 'ba-05', name: 'Tile - Large Areas', cost: 5.80, unit: 'sqft', group: 'bath-tile' },
+  { id: 'ba-06', name: 'Tile - Small Areas', cost: 10.00, unit: 'sqft', group: 'bath-tile' },
+  { id: 'ba-07', name: 'Reglaze Tub or Chemical Clean', cost: 350.00, unit: 'ea.', group: 'tub-shower' },
+  { id: 'ba-08', name: 'Reglaze Tub + Surround', cost: 750.00, unit: 'ea.', group: 'tub-shower' },
+  { id: 'ba-09', name: 'Reglaze Shower', cost: 1325.00, unit: 'ea.', group: 'tub-shower' },
+  { id: 'ba-10', name: 'Tiled Shower Tear Out + Install', cost: 3100.00, unit: 'ea.', group: 'tub-shower' },
+  { id: 'ba-11', name: 'Tub Tile Surround Tear Out + Install', cost: 2250.00, unit: 'ea.', group: 'tub-shower' },
+  { id: 'ba-12', name: 'Shower Insert Tear Out + New', cost: 825.00, unit: 'ea.', group: 'tub-shower' },
+  { id: 'ba-13', name: 'Tub Tear Out + New Insert & Tub', cost: 1575.00, unit: 'ea.', group: 'tub-shower' },
+  { id: 'ba-14', name: 'Undermount Sink', cost: 150.00, unit: 'ea.', group: 'vanity' },
+  { id: 'ba-15', name: 'Mirror', cost: 200.00, unit: 'ea.', group: 'vanity' },
+  { id: 'ba-16', name: 'HVL (needed if no window)', cost: 275.00, unit: 'ea.', group: 'vanity' },
+
+  // Appliances / Systems
+  { id: 'as-01', name: 'Furnace', cost: 3350.00, unit: 'ea.', group: 'hvac', hasYear: true, notes: 'Photo of serial required' },
+  { id: 'as-02', name: 'Condensing Unit', cost: 3300.00, unit: 'ea.', group: 'hvac', hasYear: true, notes: 'Photo of serial required' },
+  { id: 'as-03', name: 'Package Unit', cost: 4700.00, unit: 'ea.', group: 'hvac' },
+  { id: 'as-04', name: 'A-Coil (if no condensing unit)', cost: 1625.00, unit: 'ea.', group: 'hvac' },
+  { id: 'as-05', name: 'Ducting (if NO HVAC)', cost: 3200.00, unit: 'ea.', group: 'hvac' },
+  { id: 'as-06', name: 'Duct Cleaning - Floor Vents', cost: 550.00, unit: 'ea.', group: 'hvac' },
+  { id: 'as-07', name: 'Window Unit Replacement 220', cost: 575.00, unit: 'ea.', group: 'hvac' },
+  { id: 'as-08', name: 'Hot Water Heater w/ Expansion Tank', cost: 1425.00, unit: 'ea.', group: 'hvac', hasYear: true, notes: 'Photo of serial required' },
+  { id: 'as-09', name: 'Hot Water Heater Expansion Tank Only', cost: 200.00, unit: 'ea.', group: 'hvac' },
+  { id: 'as-10', name: 'Switches / Outlets', cost: 1400.00, unit: 'house', group: 'electrical' },
+  { id: 'as-11', name: 'Standard Electrical', cost: 1650.00, unit: 'house', group: 'electrical', defaultQty: 1 },
+  { id: 'as-12', name: 'Subfloor', cost: 8.20, unit: 'sqft', group: 'structural' },
+  { id: 'as-13', name: 'Framing', cost: 950.00, unit: 'variable', group: 'structural' },
+  { id: 'as-14', name: 'Structural (Pier)', cost: 375.00, unit: 'pier', group: 'structural' },
+  { id: 'as-15', name: 'Structural Foam Injection', cost: 5.85, unit: 'sqft', group: 'structural' },
+  { id: 'as-16', name: 'Roof', cost: 1100.00, unit: '225 sqft', group: 'structural', min: 1000, notes: 'Photo each side required' },
+  { id: 'as-17', name: 'Plumbing', cost: 1000.00, unit: 'variable', group: 'misc-systems', defaultQty: 1 },
+  { id: 'as-18', name: 'Electrical Panel Swap to 200A', cost: 2350.00, unit: 'ea.', group: 'electrical' },
+  { id: 'as-19', name: 'Full Electrical Rewire (to Studs)', cost: 5.65, unit: 'sqft', group: 'electrical' },
+  { id: 'as-20', name: 'Full Electrical Rewire (leaving Drywall)', cost: 9.15, unit: 'sqft', group: 'electrical' },
+  { id: 'as-21', name: 'Wall Insulation (to Studs)', cost: 1.20, unit: 'sqft', group: 'insulation-drywall' },
+  { id: 'as-22', name: 'Attic Insulation', cost: 1225.00, unit: '1,600 sqft', group: 'insulation-drywall' },
+  { id: 'as-23', name: 'New Drywall to Studs (L&M)', cost: 5.20, unit: 'sqft', group: 'insulation-drywall' },
+  { id: 'as-24', name: 'Aluminum Wiring', cost: 2450.00, unit: 'variable', group: 'electrical' },
+
+  // Exterior
+  { id: 'ex-01', name: 'Fence Repair - Chain Link / Wood Gate', cost: 225.00, unit: 'variable', group: 'fence' },
+  { id: 'ex-02', name: 'Fence Repair - Chain Link', cost: 275.00, unit: 'LF', group: 'fence' },
+  { id: 'ex-03', name: 'Fence Repair - Privacy 6ft', cost: 30.00, unit: 'LF', group: 'fence' },
+  { id: 'ex-04', name: 'Landscaping', cost: 450.00, unit: 'variable', group: 'trees', min: 500, defaultQty: 1 },
+  { id: 'ex-05', name: "Vinyl Siding (10'x10')", cost: 300.00, unit: 'square', group: 'siding' },
+  { id: 'ex-06', name: 'Tuck Pointing', cost: 225.00, unit: 'variable', group: 'siding' },
+  { id: 'ex-07', name: 'Exterior Paint', cost: 2.60, unit: 'sqft', group: 'siding' },
+  { id: 'ex-08', name: 'Exterior Wood Repair', cost: 525.00, unit: 'variable', group: 'siding', min: 500 },
+  { id: 'ex-09', name: "Siding Repair (10'x10')", cost: 975.00, unit: 'section', group: 'siding' },
+  { id: 'ex-10', name: 'Tree Trimming', cost: 450.00, unit: 'variable', group: 'trees' },
+  { id: 'ex-11', name: 'Tree Removal (w/o stump)', cost: 1450.00, unit: 'tree', group: 'trees' },
+  { id: 'ex-12', name: 'Stump Grinding', cost: 250.00, unit: 'stump', group: 'trees' },
+  { id: 'ex-13', name: 'Aluminum Window Paint (Int/Ext)', cost: 700.00, unit: 'house', group: 'windows' },
+  { id: 'ex-14', name: 'Windows (3x5 sash)', cost: 425.00, unit: 'ea.', group: 'windows' },
+  { id: 'ex-15', name: 'Window Repair - Non-Insulated (6x6+)', cost: 35.00, unit: 'sf', group: 'windows' },
+  { id: 'ex-16', name: 'Window Repair - Insulated (6x6+)', cost: 40.00, unit: 'sf', group: 'windows' },
+  { id: 'ex-17', name: 'Aluminum Framed Window Pane', cost: 100.00, unit: 'pane', group: 'windows' },
+  { id: 'ex-18', name: 'Guttering', cost: 4.15, unit: 'LF', group: 'siding' },
+  { id: 'ex-19', name: 'Concrete w/ Demo', cost: 200.00, unit: 'sqft', group: 'siding' },
+  { id: 'ex-20', name: 'Mowing (summer, every 2 weeks)', cost: 45.00, unit: 'mowing', group: 'trees', defaultQty: 12 },
+  { id: 'ex-21', name: 'Garage Door - 1 Car', cost: 975.00, unit: 'ea.', group: 'garage' },
+  { id: 'ex-22', name: 'Garage Door - 2 Car', cost: 1225.00, unit: 'ea.', group: 'garage' },
+  { id: 'ex-23', name: 'Garage Conversion', cost: 8850.00, unit: 'ea.', group: 'garage' },
+];
+
+// Room Definitions
+const ROOM_DEFS = {
+  bathroom: {
+    id: 'bathroom', name: 'Bathroom', icon: '🚿', multi: true,
+    groups: [
+      { id: 'vanity', name: 'Vanity & Countertop', items: ['ba-01','ba-02','ba-03','ba-04','ba-14','ba-15','ba-16'] },
+      { id: 'tub-shower', name: 'Tub & Shower', items: ['ba-07','ba-08','ba-09','ba-10','ba-11','ba-12','ba-13'] },
+      { id: 'bath-tile', name: 'Tile', items: ['ba-05','ba-06'] },
+    ]
+  },
+  bedroom: {
+    id: 'bedroom', name: 'Bedroom', icon: '🛏️', multi: true,
+    groups: [
+      { id: 'br-flooring', name: 'Flooring', items: ['ig-01','ig-02','ig-03','ig-04','ig-05','ig-06'] },
+      { id: 'br-paint', name: 'Paint & Wall Repair', items: ['ig-07','ig-08','ig-09'] },
+      { id: 'br-doors', name: 'Doors', items: ['ig-10','ig-11','ig-12','ig-13'] },
+      { id: 'br-closet', name: 'Closet', items: ['ig-12'] },
+    ]
+  },
+  living: {
+    id: 'living', name: 'Living / Common', icon: '🛋️', multi: true,
+    groups: [
+      { id: 'lv-flooring', name: 'Flooring', items: ['ig-01','ig-02','ig-03','ig-04','ig-05','ig-06'] },
+      { id: 'lv-paint', name: 'Paint & Wall Repair', items: ['ig-07','ig-08','ig-09'] },
+      { id: 'lv-doors', name: 'Doors', items: ['ig-10','ig-11','ig-12','ig-13'] },
+      { id: 'lv-lighting', name: 'Lighting', items: ['ig-22'] },
+    ]
+  },
+  kitchen: {
+    id: 'kitchen', name: 'Kitchen', icon: '🍳', multi: false,
+    groups: [
+      { id: 'cabinets', name: 'Cabinets', items: ['kt-01','kt-02','kt-03','kt-04','kt-05'] },
+      { id: 'counters-tile', name: 'Countertops & Tile', items: ['kt-06','kt-07','kt-08','kt-09','kt-10'] },
+      { id: 'appliances', name: 'Appliances', items: ['kt-11','kt-12','kt-13','kt-14','kt-15','kt-16','kt-17'] },
+    ]
+  },
+  interior: {
+    id: 'interior', name: 'Interior / General', icon: '🏠', multi: false,
+    groups: [
+      { id: 'flooring', name: 'Flooring', items: ['ig-01','ig-02','ig-03','ig-04','ig-05','ig-06'] },
+      { id: 'paint-repair', name: 'Paint & Wall Repair', items: ['ig-07','ig-08','ig-09'] },
+      { id: 'doors', name: 'Doors', items: ['ig-10','ig-11','ig-12','ig-13','ig-14','ig-15','ig-16','ig-17','ig-18'] },
+      { id: 'pest', name: 'Pest Control', items: ['ig-23','ig-24'] },
+    ]
+  },
+  systems: {
+    id: 'systems', name: 'Systems & Structure', icon: '⚙️', multi: false,
+    groups: [
+      { id: 'hvac', name: 'HVAC', items: ['as-01','as-02','as-03','as-04','as-05','as-06','as-07','as-08','as-09'] },
+      { id: 'electrical', name: 'Electrical', items: ['as-10','as-11','as-18','as-19','as-20','as-24'] },
+      { id: 'structural', name: 'Structural', items: ['as-12','as-13','as-14','as-15','as-16','as-17'] },
+      { id: 'insulation-drywall', name: 'Insulation & Drywall', items: ['as-21','as-22','as-23'] },
+    ]
+  },
+  exterior: {
+    id: 'exterior', name: 'Exterior', icon: '🌳', multi: false,
+    groups: [
+      { id: 'fence', name: 'Fence', items: ['ex-01','ex-02','ex-03'] },
+      { id: 'siding', name: 'Siding', items: ['ex-05','ex-06','ex-07','ex-08','ex-09','ex-18','ex-19'] },
+      { id: 'windows', name: 'Windows', items: ['ex-13','ex-14','ex-15','ex-16','ex-17'] },
+      { id: 'garage', name: 'Garage', items: ['ex-21','ex-22','ex-23'] },
+      { id: 'trees', name: 'Trees & Landscaping', items: ['ex-04','ex-10','ex-11','ex-12','ex-20'] },
+    ]
+  },
+};
+
+const ROOM_TYPES = ['interior', 'kitchen', 'bathroom', 'systems', 'exterior', 'bedroom', 'living'];
+
+const SECTION_TABS = [
+  { key: 'interior', label: 'Interior', icon: '🏠' },
+  { key: 'kitchen', label: 'Kitchen', icon: '🍳' },
+  { key: 'bathroom', label: 'Bathrooms', icon: '🚿' },
+  { key: 'systems', label: 'Systems', icon: '⚙️' },
+  { key: 'exterior', label: 'Exterior', icon: '🌳' },
+  { key: 'bedroom', label: 'Bedrooms', icon: '🛏️' },
+  { key: 'living', label: 'Living', icon: '🛋️' },
+];
+
+function getItemDef(itemId) {
+  return ALL_ITEMS.find(i => i.id === itemId) || null;
+}
+
+function getGroupItems(groupDef) {
+  return groupDef.items.map(id => getItemDef(id)).filter(Boolean);
+}
+
+// ============================================================
+// STORAGE
+// ============================================================
+const STORAGE_KEY = 'sparkEst_v2';
+const PRICES_KEY = 'sparkPrices_v2';
+const SETTINGS_KEY = 'sparkSettings_v2';
+
+function loadPriceOverrides() {
+  try { return JSON.parse(localStorage.getItem(PRICES_KEY) || '{}'); } catch { return {}; }
+}
+function savePriceOverrides() {
+  localStorage.setItem(PRICES_KEY, JSON.stringify(state.priceOverrides));
+}
+function loadSettings() {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch { return {}; }
+}
+function saveSettings() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+}
+function loadProjects() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+}
+function saveProjects(list) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list.map(p => ({ ...p, photos: {} })))); } catch {}
+  }
+}
+
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  currentTab: 0,
+  showSummary: false,
+  showDeal: false,
+  currentProjectId: null,
+  currentProjectName: 'New Estimate',
+  items: {},
+  photos: {},
+  priceOverrides: {},
+  expandedGroups: {},
+  settings: { holdingCostPerWeek: 250, targetMargin: 20 },
+  rooms: {},
+  customItems: {},
+};
+
+function getItemCost(itemId) {
+  return state.priceOverrides[itemId] !== undefined ? state.priceOverrides[itemId] : (getItemDef(itemId)?.cost || 0);
+}
+
+function blankState() { return { checked: false, qty: '', year: '' }; }
+
+function initState() {
+  state.items = {};
+  state.photos = {};
+  state.rooms = {};
+  state.customItems = {};
+  state.expandedGroups = {};
+
+  // Single rooms: one default instance
+  ['kitchen', 'interior', 'systems', 'exterior'].forEach(rt => {
+    state.rooms[rt] = [{ id: `${rt}_1`, name: ROOM_DEFS[rt].name }];
+  });
+
+  // Multi rooms: create default instances
+  state.rooms['bathroom'] = [
+    { id: 'bath_1', name: 'Bathroom 1' },
+    { id: 'bath_2', name: 'Bathroom 2' },
+  ];
+  state.rooms['bedroom'] = [
+    { id: 'bed_1', name: 'Bedroom 1' },
+    { id: 'bed_2', name: 'Bedroom 2' },
+  ];
+  state.rooms['living'] = [
+    { id: 'liv_1', name: 'Living Room' },
+  ];
+}
+
+function getStateKey(roomId, itemId) {
+  return `${roomId}:${itemId}`;
+}
+
+function getRoomState(roomId, itemId) {
+  const key = getStateKey(roomId, itemId);
+  return state.items[key] || blankState();
+}
+
+function calcItemTotal(itemId, st) {
+  if (!st || !st.checked) return 0;
+  const q = parseFloat(st.qty);
+  if (!q || q <= 0) return 0;
+  const item = getItemDef(itemId);
+  if (!item) return 0;
+  const raw = q * getItemCost(itemId);
+  return item.min ? Math.max(raw, item.min) : raw;
+}
+
+function calcRoomTotal(roomId, roomDef) {
+  let total = 0;
+  roomDef.groups.forEach(g => {
+    g.items.forEach(itemId => {
+      total += calcItemTotal(itemId, getRoomState(roomId, itemId));
+    });
+    // Custom items
+    const customs = state.customItems[roomId]?.[g.id] || [];
+    customs.forEach(c => {
+      const st = state.items[getStateKey(roomId, c.id)];
+      if (st?.checked && parseFloat(st.qty) > 0) {
+        total += parseFloat(st.qty) * (c.cost || 0);
+      }
+    });
+  });
+  return total;
+}
+
+function calcSectionTotal(roomType) {
+  return (state.rooms[roomType] || []).reduce((sum, room) => sum + calcRoomTotal(room.id, ROOM_DEFS[roomType]), 0);
+}
+
+function calcGrandTotal() {
+  return ROOM_TYPES.reduce((sum, rt) => sum + calcSectionTotal(rt), 0);
+}
+
+function checkedCount(roomType) {
+  const def = ROOM_DEFS[roomType];
+  return (state.rooms[roomType] || []).reduce((sum, room) => {
+    return sum + def.groups.reduce((s, g) => {
+      return s + g.items.filter(id => getRoomState(room.id, id).checked).length;
+    }, 0);
+  }, 0);
+}
+
+function calcProgress() {
+  let totalGroups = 0, checkedGroups = 0;
+  ROOM_TYPES.forEach(rt => {
+    const def = ROOM_DEFS[rt];
+    (state.rooms[rt] || []).forEach(room => {
+      def.groups.forEach(g => {
+        totalGroups++;
+        const hasCheck = g.items.some(id => getRoomState(room.id, id).checked);
+        if (hasCheck) checkedGroups++;
+      });
+    });
+  });
+  return { total: totalGroups, checked: checkedGroups, pct: totalGroups === 0 ? 0 : Math.round(checkedGroups / totalGroups * 100) };
+}
+
+function saveCurrentState() {
+  if (!state.currentProjectId) return;
+  const list = loadProjects();
+  const snap = {
+    id: state.currentProjectId,
+    name: state.currentProjectName,
+    savedAt: new Date().toISOString(),
+    items: state.items,
+    photos: state.photos,
+    rooms: state.rooms,
+    customItems: state.customItems,
+    priceOverrides: state.priceOverrides,
+  };
+  const idx = list.findIndex(p => p.id === state.currentProjectId);
+  if (idx >= 0) list[idx] = snap; else list.unshift(snap);
+  saveProjects(list);
+}
+
+let _saveTimer;
+function scheduleSave() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(saveCurrentState, 600);
+}
+
+function loadProjectIntoState(proj) {
+  state.currentProjectId = proj.id;
+  state.currentProjectName = proj.name;
+  state.items = proj.items || {};
+  state.photos = proj.photos || {};
+  state.rooms = proj.rooms || {};
+  state.customItems = proj.customItems || {};
+  state.priceOverrides = proj.priceOverrides || {};
+  state.currentTab = 0;
+  state.showSummary = false;
+  state.expandedGroups = {};
+}
+
+// ============================================================
+// TOAST
+// ============================================================
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const colors = { info: 'bg-gray-800', success: 'bg-green-600', error: 'bg-red-500', warn: 'bg-amber-500' };
+  const icons = {
+    info: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+    success: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
+    error: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+  };
+  const el = document.createElement('div');
+  el.className = `toast ${colors[type]} text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 text-sm font-medium pointer-events-auto max-w-[90vw]`;
+  el.innerHTML = `${icons[type] || icons.info}<span>${message}</span>`;
+  container.appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 300); }, 3000);
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function fmt$(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
+function fmtDate(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); } catch { return ''; }
+}
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  const headers = parseCsvLine(lines[0]);
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const vals = parseCsvLine(line);
+    return Object.fromEntries(headers.map((h, i) => [h.trim(), vals[i] ?? '']));
+  });
+}
+function parseCsvLine(line) {
+  const result = []; let cur = ''; let inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+    else if (c === ',' && !inQ) { result.push(cur.trim()); cur = ''; }
+    else cur += c;
+  }
+  result.push(cur.trim()); return result;
+}
+
+// ============================================================
+// ICONS
+// ============================================================
+const ICONS = {
+  menu: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
+  gear: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  pencil: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  trash: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>',
+  export: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>',
+  check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  chevronDown: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>',
+  chevronUp: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>',
+  camera: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2l2-3h8l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  photoAdd: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
+  chart: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>',
+  plus: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  back: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>',
+  home: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>',
+  delete: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
+  scan: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><rect x="7" y="7" width="10" height="10" rx="1"/></svg>',
+};
+</script>
+</body>
+</html>
+
+<script>
+// ============================================================
+// MODAL SYSTEM
+// ============================================================
+let pendingModalCb = null;
+
+function openModal(title, placeholder, defaultVal, onConfirm, description) {
+  pendingModalCb = onConfirm;
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-desc').textContent = description || '';
+  document.getElementById('modal-desc').classList.toggle('hidden', !description);
+  const inp = document.getElementById('modal-input');
+  inp.placeholder = placeholder || '';
+  inp.value = defaultVal || '';
+  document.getElementById('app-modal').classList.remove('hidden');
+  setTimeout(() => { inp.focus(); inp.select(); }, 50);
+}
+function confirmModal() {
+  const val = document.getElementById('modal-input').value.trim();
+  if (val && pendingModalCb) pendingModalCb(val);
+  closeModal();
+}
+function closeModal() {
+  document.getElementById('app-modal').classList.add('hidden');
+  pendingModalCb = null;
+}
+
+// Add Item Modal
+let pendingAddItem = null;
+function openAddItemModal(roomId, groupId, onAdd) {
+  pendingAddItem = { roomId, groupId, onAdd };
+  document.getElementById('add-item-name').value = '';
+  document.getElementById('add-item-cost').value = '';
+  document.getElementById('add-item-unit').value = '';
+  document.getElementById('add-item-min').value = '';
+  document.getElementById('add-item-notes').value = '';
+  document.getElementById('add-item-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('add-item-name').focus(), 50);
+}
+function confirmAddItem() {
+  const name = document.getElementById('add-item-name').value.trim();
+  const cost = parseFloat(document.getElementById('add-item-cost').value);
+  const unit = document.getElementById('add-item-unit').value.trim() || 'ea.';
+  const min = parseFloat(document.getElementById('add-item-min').value) || null;
+  const notes = document.getElementById('add-item-notes').value.trim() || null;
+  if (!name || isNaN(cost) || cost < 0) {
+    showToast('Please enter a valid name and cost', 'error');
+    return;
+  }
+  const cId = `custom_${Date.now()}`;
+  if (!state.customItems[pendingAddItem.roomId]) state.customItems[pendingAddItem.roomId] = {};
+  if (!state.customItems[pendingAddItem.roomId][pendingAddItem.groupId]) state.customItems[pendingAddItem.roomId][pendingAddItem.groupId] = [];
+  state.customItems[pendingAddItem.roomId][pendingAddItem.groupId].push({ id: cId, name, cost, unit, min, notes });
+  state.items[getStateKey(pendingAddItem.roomId, cId)] = blankState();
+  document.getElementById('add-item-modal').classList.add('hidden');
+  saveCurrentState(); render();
+  showToast('Custom item added', 'success');
+}
+
+// Deal Modal
+function openDealModal() {
+  document.getElementById('deal-modal').classList.remove('hidden');
+  renderDealContent();
+}
+function closeDealModal() {
+  document.getElementById('deal-modal').classList.add('hidden');
+}
+
+// Photo Viewer
+function openPhotoViewer(dataUrl, itemId) {
+  document.getElementById('photo-viewer-img').src = dataUrl;
+  document.getElementById('photo-modal').classList.remove('hidden');
+  const ocrEl = document.getElementById('photo-ocr-result');
+  ocrEl.classList.add('hidden');
+  // Try OCR
+  if (typeof Tesseract !== 'undefined') {
+    ocrEl.classList.remove('hidden');
+    document.getElementById('photo-ocr-text').textContent = 'Scanning for serial number...';
+    Tesseract.recognize(dataUrl, 'eng', { logger: () => {} })
+      .then(({ data: { text } }) => {
+        const sn = extractSerialNumber(text);
+        document.getElementById('photo-ocr-text').textContent = sn || 'No serial number detected';
+        if (sn && itemId) {
+          // Auto-fill year if found
+          const yr = parseYearFromSerial(sn);
+          if (yr) {
+            const s = state.items[itemId];
+            if (s && s.checked) { s.year = yr; saveCurrentState(); }
+          }
+        }
+      })
+      .catch(() => { ocrEl.classList.add('hidden'); });
+  }
+}
+function closePhotoViewer() {
+  document.getElementById('photo-modal').classList.add('hidden');
+}
+function extractSerialNumber(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 3);
+  // Look for patterns like SN, S/N, Serial, followed by alphanumeric
+  for (const line of lines) {
+    const match = line.match(/(?:SN|S\/N|Serial\.?\s*(?:No\.?)?)\s*:?\s*([A-Z0-9\-]{5,})/i);
+    if (match) return match[1];
+  }
+  // Fallback: find longest alphanumeric string
+  for (const line of lines) {
+    const match = line.match(/([A-Z0-9]{5,})/i);
+    if (match) return match[1];
+  }
+  return null;
+}
+function parseYearFromSerial(sn) {
+  const yrMatch = sn.match(/(\d{2})(\d{2})/);
+  if (yrMatch) {
+    const yr = parseInt(yrMatch[2]);
+    if (yr >= 50) return 1900 + yr;
+    return 2000 + yr;
+  }
+  return null;
+}
+
+// Settings
+function openSettings() {
+  refreshPriceStatus();
+  document.getElementById('holding-cost-input').value = state.settings.holdingCostPerWeek;
+  document.getElementById('target-margin-input').value = state.settings.targetMargin;
+  document.getElementById('settings-modal').classList.remove('hidden');
+}
+function closeSettings() {
+  const hc = parseFloat(document.getElementById('holding-cost-input').value);
+  const tm = parseFloat(document.getElementById('target-margin-input').value);
+  if (!isNaN(hc) && hc >= 0) state.settings.holdingCostPerWeek = hc;
+  if (!isNaN(tm) && tm > 0) state.settings.targetMargin = tm;
+  saveSettings();
+  document.getElementById('settings-modal').classList.add('hidden');
+}
+function refreshPriceStatus() {
+  const count = Object.keys(state.priceOverrides).length;
+  const el = document.getElementById('price-status');
+  const resetBtn = document.getElementById('reset-prices-btn');
+  if (count > 0) {
+    el.textContent = `Custom prices active - ${count} item${count !== 1 ? 's' : ''} overridden`;
+    el.className = 'mb-3 px-4 py-3 rounded-xl text-sm bg-spark-50 text-spark-700 font-medium';
+    resetBtn.classList.remove('hidden');
+  } else {
+    el.textContent = 'Using default prices';
+    el.className = 'mb-3 px-4 py-3 rounded-xl text-sm bg-gray-50 text-gray-500 font-medium';
+    resetBtn.classList.add('hidden');
+  }
+}
+
+// Side Panel
+function openPanel() {
+  refreshPanelList();
+  const panel = document.getElementById('side-panel');
+  const overlay = document.getElementById('panel-overlay');
+  panel.classList.remove('-translate-x-full');
+  overlay.classList.remove('hidden');
+  requestAnimationFrame(() => overlay.classList.remove('opacity-0'));
+}
+function closePanel() {
+  const panel = document.getElementById('side-panel');
+  const overlay = document.getElementById('panel-overlay');
+  panel.classList.add('-translate-x-full');
+  overlay.classList.add('opacity-0');
+  setTimeout(() => overlay.classList.add('hidden'), 300);
+}
+function refreshPanelList() {
+  const list = loadProjects();
+  const el = document.getElementById('panel-list');
+  el.innerHTML = list.length === 0
+    ? `<div class="text-center py-12">
+        <div class="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-3">${ICONS.home}</div>
+        <p class="text-gray-400 text-sm">No saved projects yet</p>
+      </div>`
+    : list.map(p => {
+        const isActive = p.id === state.currentProjectId;
+        const safeName = p.name.replace(/"/g, '&quot;');
+        return `<div class="border-b border-gray-50 flex items-stretch transition-colors ${isActive ? 'bg-spark-50' : 'hover:bg-gray-50'}">
+          <button class="panel-proj-btn flex-1 text-left px-4 py-4" data-proj-id="${p.id}">
+            <p class="font-semibold text-sm ${isActive ? 'text-spark-700' : 'text-gray-900'}">${p.name}</p>
+            <p class="text-xs text-gray-400 mt-0.5">${fmtDate(p.savedAt)}</p>
+            ${isActive ? '<span class="inline-flex items-center gap-1 text-spark-500 text-xs font-medium mt-1"><span class="w-1.5 h-1.5 bg-spark-500 rounded-full"></span>Active</span>' : ''}
+          </button>
+          <div class="flex flex-col justify-center gap-1 pr-3">
+            <button class="panel-rename-btn p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all" data-proj-id="${p.id}" data-proj-name="${safeName}" title="Rename">${ICONS.pencil}</button>
+            ${!isActive ? `<button class="panel-delete-btn p-2 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all" data-proj-id="${p.id}" data-proj-name="${safeName}" title="Delete">${ICONS.trash}</button>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+
+  el.querySelectorAll('.panel-proj-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.projId;
+      if (id === state.currentProjectId) { closePanel(); return; }
+      saveCurrentState();
+      const proj = loadProjects().find(p => p.id === id);
+      if (proj) { loadProjectIntoState(proj); render(); closePanel(); showToast(`Switched to "${proj.name}"`, 'info'); }
+    });
+  });
+  el.querySelectorAll('.panel-rename-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      openModal('Rename Project', 'e.g. 123 Main St', btn.dataset.projName, name => {
+        const saved = loadProjects();
+        const proj = saved.find(p => p.id === btn.dataset.projId);
+        if (proj) { proj.name = name; saveProjects(saved); if (btn.dataset.projId === state.currentProjectId) { state.currentProjectName = name; render(); } }
+        refreshPanelList();
+      });
+    });
+  });
+  el.querySelectorAll('.panel-delete-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm(`Delete "${btn.dataset.projName}"? This cannot be undone.`)) return;
+      saveProjects(loadProjects().filter(p => p.id !== btn.dataset.projId));
+      refreshPanelList();
+      showToast('Project deleted', 'info');
+    });
+  });
+}
+
+// ============================================================
+// RENDER ENGINE
+// ============================================================
+function render() {
+  const app = document.getElementById('app');
+  if (state.showSummary) {
+    app.innerHTML = renderSummary();
+  } else {
+    app.innerHTML = renderMain();
+  }
+}
+
+function renderHeader() {
+  const total = calcGrandTotal();
+  const progress = calcProgress();
+  const activeSections = ROOM_TYPES.filter(rt => calcSectionTotal(rt) > 0).length;
+  return `
+    <div class="bg-gray-900 text-white shadow-lg flex-shrink-0 pt-safe">
+      <div class="px-4 pt-3 pb-2 flex justify-between items-center">
+        <button data-action="open-panel" class="touch-btn p-1.5 -ml-1 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800">
+          ${ICONS.menu}
+        </button>
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 bg-gradient-to-br from-spark-400 to-spark-600 rounded-md flex items-center justify-center">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </div>
+          <p class="text-xs text-spark-400 font-semibold tracking-wider uppercase">Repair Estimator</p>
+        </div>
+        <div class="flex items-center gap-1">
+          <button data-action="open-deal" class="touch-btn p-1.5 text-gray-400 hover:text-spark-400 transition-colors rounded-lg hover:bg-gray-800" title="Deal Analyzer">
+            ${ICONS.chart}
+          </button>
+          <button data-action="open-settings" class="touch-btn p-1.5 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800" title="Settings">
+            ${ICONS.gear}
+          </button>
+          <button data-action="export-excel" class="touch-btn p-1.5 -mr-1 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800" title="Export to Excel">
+            ${ICONS.export}
+          </button>
+        </div>
+      </div>
+      <div class="px-4 pt-1 pb-5">
+        <div class="flex items-baseline gap-2">
+          <p class="text-xs font-semibold tracking-widest uppercase text-spark-400">Running Total</p>
+        </div>
+        <p class="text-5xl font-bold mt-0.5 tabular-nums tracking-tight anim-pop" style="animation-duration:0.4s">${fmt$(total)}</p>
+        <div class="flex items-center gap-2 mt-2">
+          <p class="text-xs text-gray-400 truncate flex-1">${state.currentProjectName} · ${activeSections} active</p>
+          <button data-action="rename-project" class="touch-btn flex-shrink-0 text-gray-500 hover:text-spark-400 p-1 rounded transition-colors" title="Rename project">${ICONS.pencil}</button>
+        </div>
+        <div class="mt-3 flex items-center gap-3">
+          <div class="flex-1 h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div class="progress-shimmer h-full rounded-full" style="width:${progress.pct}%;transition:width 0.5s ease"></div>
+          </div>
+          <span class="text-xs text-gray-500 flex-shrink-0 tabular-nums font-medium">${progress.pct}%</span>
+        </div>
+        <p class="text-xs text-gray-600 mt-1">${progress.checked}/${progress.total} groups reviewed</p>
+      </div>
+    </div>`;
+}
+
+function renderTabs() {
+  return `<div class="bg-white border-b border-gray-200 scroll-x flex flex-shrink-0">
+    ${SECTION_TABS.map((tab, i) => {
+      const active = i === state.currentTab;
+      const rt = ROOM_TYPES[i];
+      const total = calcSectionTotal(rt);
+      const count = checkedCount(rt);
+      return `<button data-action="switch-tab" data-index="${i}"
+        class="flex-none px-4 py-3.5 text-sm font-medium border-b-2 whitespace-nowrap transition-all ${active ? 'border-spark-500 text-spark-600 bg-spark-50' : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'}">
+        <span class="mr-1">${tab.icon}</span>${tab.label}
+        ${count > 0 ? `<span class="ml-1 text-xs ${active ? 'text-spark-500' : 'text-gray-400'} font-medium">${total > 0 ? fmt$(total) : count + ' done'}</span>` : ''}
+      </button>`;
+    }).join('')}
+  </div>`;
+}
+
+function renderRoomSubTabs(roomType) {
+  const rooms = state.rooms[roomType] || [];
+  const def = ROOM_DEFS[roomType];
+  if (!def.multi || rooms.length === 0) return '';
+
+  return `<div class="bg-white border-b border-gray-200 scroll-x room-tabs flex items-stretch flex-shrink-0">
+    ${rooms.map((room, i) => {
+      const active = i === (state._currentSubTab || 0);
+      const rt = calcRoomTotal(room.id, def);
+      const rc = def.groups.reduce((s, g) => s + g.items.filter(id => getRoomState(room.id, id).checked).length, 0);
+      return `<div class="flex-none flex items-center border-b-2 transition-all ${active ? 'border-spark-500 bg-spark-50' : 'border-transparent'}">
+        <button data-action="switch-sub" data-index="${i}"
+          class="pl-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${active ? 'text-spark-700' : 'text-gray-500 hover:text-gray-700'}">
+          ${room.name}${rc > 0 ? `<span class="ml-1 text-xs ${active ? 'text-spark-500' : 'text-gray-400'}">${rt > 0 ? fmt$(rt) : rc + ' done'}</span>` : ''}
+        </button>
+        <button data-action="edit-room-name" data-room="${roomType}" data-index="${i}" class="px-1.5 py-2.5 ${active ? 'text-spark-400 hover:text-spark-600' : 'text-gray-300 hover:text-gray-500'} transition-colors">${ICONS.pencil}</button>
+        ${rooms.length > 1 ? `<button data-action="remove-room" data-room="${roomType}" data-index="${i}" class="pr-2 py-2.5 ${active ? 'text-red-300 hover:text-red-500' : 'text-gray-200 hover:text-red-400'} transition-colors">${ICONS.trash}</button>` : ''}
+      </div>`;
+    }).join('')}
+    <button data-action="add-room" data-room="${roomType}" class="flex-none px-4 py-2.5 text-sm font-semibold text-spark-500 hover:text-spark-600 hover:bg-spark-50 border-b-2 border-transparent whitespace-nowrap transition-colors flex items-center gap-1">${ICONS.plus} Add</button>
+  </div>`;
+}
+
+function renderLineItem(item, roomId) {
+  const sKey = getStateKey(roomId, item.id);
+  const s = state.items[sKey] || blankState();
+  const total = calcItemTotal(item.id, s);
+  const costLabel = `$${getItemCost(item.id).toLocaleString('en-US', { minimumFractionDigits: 2 })} / ${item.unit}`;
+  const meta = [item.notes, item.min ? `min $${item.min.toLocaleString()}` : null].filter(Boolean).join(' · ');
+
+  return `
+    <div data-item-card data-id="${sKey}" class="item-card bg-white rounded-2xl mb-2 shadow-sm overflow-hidden ${s.checked ? 'active' : ''}">
+      <div class="p-4">
+        <div class="flex gap-3 items-start">
+          <button data-action="toggle-item" data-id="${sKey}" data-item="${item.id}"
+            class="check-btn flex-shrink-0 mt-0.5 w-7 h-7 rounded-full border-2 flex items-center justify-center ${s.checked ? 'checked' : 'border-gray-300 bg-white'}">
+            ${s.checked ? ICONS.check : ''}
+          </button>
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between gap-2 items-start">
+              <p class="font-semibold text-sm leading-snug ${s.checked ? 'text-gray-900' : 'text-gray-400'}">${item.name}</p>
+              <p class="font-bold text-base flex-shrink-0 ${total > 0 ? 'text-spark-600' : 'text-gray-200'}">${total > 0 ? fmt$(total) : '—'}</p>
+            </div>
+            <p class="text-xs text-gray-400 mt-0.5">${costLabel}${meta ? ` · ${meta}` : ''}</p>
+            ${s.checked ? `
+              <div class="mt-3 flex flex-wrap gap-3 items-center">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-gray-500 font-medium">Qty</span>
+                  <input data-action="update-qty" data-id="${sKey}" type="number" value="${s.qty}"
+                    min="0" step="any" inputmode="decimal" placeholder="0"
+                    class="border-2 border-gray-200 rounded-xl px-3 py-2 w-32 text-right text-lg font-mono focus:border-spark-500 transition-colors" />
+                  <span class="text-sm text-gray-400">${item.unit}</span>
+                </div>
+                ${item.hasYear ? `
+                  <div class="flex items-center gap-2">
+                    <span class="text-sm text-gray-500 font-medium">Year</span>
+                    <input data-action="update-year" data-id="${sKey}" type="number" value="${s.year || ''}"
+                      min="1970" max="${new Date().getFullYear()}" inputmode="numeric" placeholder="e.g. 2015"
+                      class="border-2 border-gray-200 rounded-xl px-3 py-2 w-28 text-center text-base font-mono focus:border-spark-500 transition-colors" />
+                  </div>` : ''}
+              </div>
+              ${item.hasYear ? renderPhotoSection(sKey) : ''}` : ''}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderCustomItem(cItem, roomId, groupId) {
+  const sKey = getStateKey(roomId, cItem.id);
+  const s = state.items[sKey] || blankState();
+  const q = parseFloat(s.qty) || 0;
+  const total = s.checked && q > 0 ? q * cItem.cost : 0;
+
+  return `
+    <div data-item-card data-id="${sKey}" class="item-card bg-spark-50/50 rounded-2xl mb-2 shadow-sm overflow-hidden border border-spark-100 ${s.checked ? 'active' : ''}">
+      <div class="p-4">
+        <div class="flex gap-3 items-start">
+          <button data-action="toggle-item" data-id="${sKey}" data-item="${cItem.id}"
+            class="check-btn flex-shrink-0 mt-0.5 w-7 h-7 rounded-full border-2 flex items-center justify-center ${s.checked ? 'checked' : 'border-gray-300 bg-white'}">
+            ${s.checked ? ICONS.check : ''}
+          </button>
+          <div class="flex-1 min-w-0">
+            <div class="flex justify-between gap-2 items-start">
+              <p class="font-semibold text-sm leading-snug ${s.checked ? 'text-gray-900' : 'text-gray-400'}">${cItem.name} <span class="text-xs font-normal text-spark-500">(custom)</span></p>
+              <p class="font-bold text-base flex-shrink-0 ${total > 0 ? 'text-spark-600' : 'text-gray-200'}">${total > 0 ? fmt$(total) : '—'}</p>
+            </div>
+            <p class="text-xs text-gray-400 mt-0.5">$${cItem.cost.toLocaleString('en-US', { minimumFractionDigits: 2 })} / ${cItem.unit}${cItem.notes ? ` · ${cItem.notes}` : ''}</p>
+            ${s.checked ? `
+              <div class="mt-3 flex flex-wrap gap-3 items-center">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm text-gray-500 font-medium">Qty</span>
+                  <input data-action="update-qty" data-id="${sKey}" type="number" value="${s.qty}"
+                    min="0" step="any" inputmode="decimal" placeholder="0"
+                    class="border-2 border-gray-200 rounded-xl px-3 py-2 w-32 text-right text-lg font-mono focus:border-spark-500 transition-colors" />
+                  <span class="text-sm text-gray-400">${cItem.unit}</span>
+                </div>
+                <button data-action="delete-custom" data-room="${roomId}" data-group="${groupId}" data-item="${cItem.id}" data-skey="${sKey}"
+                  class="touch-btn text-red-400 hover:text-red-600 text-xs font-medium px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">Delete</button>
+              </div>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderPhotoSection(itemId) {
+  const photos = state.photos[itemId] || [];
+  return `
+    <div class="mt-3 pt-3 border-t border-gray-100">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Photos</p>
+        ${photos.length > 0 ? `<span class="text-xs text-gray-400">${photos.length} attached</span>` : ''}
+      </div>
+      <div class="flex flex-wrap gap-2">
+        ${photos.map((ph, pi) => `
+          <div class="relative flex-shrink-0 photo-thumb">
+            <img src="${ph.dataUrl}" onclick="openPhotoViewer('${ph.dataUrl}', '${itemId}')"
+              class="w-24 h-24 rounded-xl object-cover border border-gray-100 cursor-pointer" />
+            <button data-action="remove-photo" data-id="${itemId}" data-index="${pi}"
+              class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs font-bold flex items-center justify-center shadow-md hover:bg-red-600 transition-colors">${ICONS.delete}</button>
+          </div>`).join('')}
+        <button data-action="add-photo" data-id="${itemId}"
+          class="touch-btn w-24 h-24 flex-shrink-0 rounded-xl border-2 border-dashed border-spark-300 bg-spark-50 flex flex-col items-center justify-center text-spark-500 gap-1 text-xs font-medium hover:bg-spark-100 transition-colors">
+          ${ICONS.camera}
+          <span>Add</span>
+        </button>
+      </div>
+    </div>`;
+}
+
+function renderGroup(groupDef, roomId, roomType) {
+  const gKey = `${roomType}:${roomId}:${groupDef.id}`;
+  const isExpanded = state.expandedGroups[gKey];
+  const items = getGroupItems(groupDef);
+  const customs = (state.customItems[roomId]?.[groupDef.id] || []);
+  const checkedInGroup = items.filter(item => getRoomState(roomId, item.id).checked).length;
+  const groupTotal = items.reduce((sum, item) => sum + calcItemTotal(item.id, getRoomState(roomId, item.id)), 0)
+    + customs.reduce((sum, c) => {
+        const st = state.items[getStateKey(roomId, c.id)];
+        return sum + (st?.checked && parseFloat(st.qty) > 0 ? parseFloat(st.qty) * c.cost : 0);
+      }, 0);
+  const chevron = isExpanded ? ICONS.chevronUp : ICONS.chevronDown;
+
+  return `
+    <div data-group-card data-gkey="${gKey}" class="bg-white rounded-2xl mb-2.5 shadow-sm overflow-hidden ${checkedInGroup > 0 ? 'ring-1 ring-spark-200' : ''}">
+      <button data-action="toggle-group" data-gkey="${gKey}"
+        class="w-full flex items-center justify-between px-4 py-3.5 text-left touch-btn">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <span class="text-gray-400 flex-shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}">${chevron}</span>
+          <span class="font-semibold text-sm text-gray-800">${groupDef.name}</span>
+          ${checkedInGroup > 0 ? `<span class="text-xs px-2 py-0.5 bg-spark-100 text-spark-600 rounded-full font-medium flex-shrink-0">${checkedInGroup} selected</span>` : ''}
+        </div>
+        <span data-group-total class="font-bold text-base flex-shrink-0 ml-2 ${groupTotal > 0 ? 'text-spark-600' : 'text-gray-200'}">${groupTotal > 0 ? fmt$(groupTotal) : '—'}</span>
+      </button>
+      ${isExpanded ? `<div class="border-t border-gray-100 px-3 pb-3 pt-2 anim-fade">
+        ${items.map(item => renderLineItem(item, roomId)).join('')}
+        ${customs.map(c => renderCustomItem(c, roomId, groupDef.id)).join('')}
+        <button data-action="add-custom-item" data-room="${roomId}" data-group="${groupDef.id}"
+          class="touch-btn w-full py-2.5 mt-1 rounded-xl border-2 border-dashed border-gray-200 text-gray-500 text-sm font-medium flex items-center justify-center gap-1.5 hover:border-spark-300 hover:text-spark-500 hover:bg-spark-50/50 transition-all">
+          ${ICONS.plus} Add Custom Item
+        </button>
+      </div>` : ''}
+    </div>`;
+}
+
+function renderRoomView(roomType) {
+  const def = ROOM_DEFS[roomType];
+  const rooms = state.rooms[roomType] || [];
+
+  if (def.multi && rooms.length > 0) {
+    const subIdx = state._currentSubTab || 0;
+    const room = rooms[subIdx] || rooms[0];
+    const rc = def.groups.reduce((s, g) => s + g.items.filter(id => getRoomState(room.id, id).checked).length, 0);
+    const ri = def.groups.reduce((s, g) => s + g.items.length, 0);
+
+    return `<div>
+      ${renderRoomSubTabs(roomType)}
+      <div class="px-4 pt-4">
+        <div class="flex justify-between items-center mb-3">
+          <p class="text-xs font-bold uppercase tracking-widest text-gray-400">${room.name}</p>
+          <p class="text-xs text-gray-400 font-medium">${rc} / ${ri} items</p>
+        </div>
+        ${def.groups.map(g => renderGroup(g, room.id, roomType)).join('')}
+        <div class="h-4"></div>
+      </div>
+    </div>`;
+  }
+
+  const room = rooms[0];
+  if (!room) return '<div class="p-8 text-center text-gray-400">No room configured</div>';
+  const rc = def.groups.reduce((s, g) => s + g.items.filter(id => getRoomState(room.id, id).checked).length, 0);
+  const ri = def.groups.reduce((s, g) => s + g.items.length, 0);
+
+  return `<div class="px-4 pt-4">
+    <div class="flex justify-between items-center mb-3">
+      <p class="text-xs font-bold uppercase tracking-widest text-gray-400">${def.name}</p>
+      <p class="text-xs text-gray-400 font-medium">${rc} / ${ri} items</p>
+    </div>
+    ${def.groups.map(g => renderGroup(g, room.id, roomType)).join('')}
+    <div class="h-4"></div>
+  </div>`;
+}
+
+function renderBottomNav() {
+  const isFirst = state.currentTab === 0;
+  const isLast = state.currentTab === SECTION_TABS.length - 1;
+  return `<div class="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-gray-200 px-4 pt-3 safe-bottom shadow-[0_-4px_20px_rgba(0,0,0,0.06)] z-30">
+    <div class="flex gap-3 max-w-lg mx-auto">
+      <button data-action="prev-tab" ${isFirst ? 'disabled' : ''}
+        class="touch-btn flex-1 py-3.5 rounded-2xl border-2 border-spark-500 text-spark-600 font-semibold text-sm ${isFirst ? 'opacity-30 cursor-not-allowed' : 'hover:bg-spark-50'}">
+        ${ICONS.back} Back
+      </button>
+      ${!isLast
+        ? `<button data-action="next-tab" class="touch-btn flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-spark-500 to-spark-600 text-white font-semibold text-sm shadow-lg shadow-spark-500/25">Next ${ICONS.chevronDown}</button>`
+        : `<button data-action="show-summary" class="touch-btn flex-1 py-3.5 rounded-2xl bg-gradient-to-r from-spark-500 to-spark-600 text-white font-semibold text-sm shadow-lg shadow-spark-500/25">View Summary</button>`}
+    </div>
+  </div>`;
+}
+
+function renderMain() {
+  return `<div class="min-h-screen flex flex-col pb-28">
+    ${renderHeader()}
+    ${renderTabs()}
+    <div class="flex-1 scroll-y" id="scroll-area">${renderRoomView(ROOM_TYPES[state.currentTab])}</div>
+    ${renderBottomNav()}
+  </div>`;
+}
+
+function renderSummary() {
+  const total = calcGrandTotal();
+  const sections = [];
+
+  ROOM_TYPES.forEach(rt => {
+    const def = ROOM_DEFS[rt];
+    (state.rooms[rt] || []).forEach(room => {
+      const rows = [];
+      def.groups.forEach(g => {
+        g.items.forEach(itemId => {
+          const st = state.items[getStateKey(room.id, itemId)];
+          if (st?.checked && parseFloat(st.qty) > 0) {
+            const item = getItemDef(itemId);
+            if (item) rows.push({ name: item.name, unit: item.unit, qty: st.qty, cost: getItemCost(itemId), total: calcItemTotal(itemId, st), year: st.year, hasYear: item.hasYear });
+          }
+        });
+        // Custom items
+        const customs = state.customItems[room.id]?.[g.id] || [];
+        customs.forEach(c => {
+          const st = state.items[getStateKey(room.id, c.id)];
+          if (st?.checked && parseFloat(st.qty) > 0) {
+            rows.push({ name: c.name + ' (custom)', unit: c.unit, qty: st.qty, cost: c.cost, total: parseFloat(st.qty) * c.cost, year: '', hasYear: false });
+          }
+        });
+      });
+      if (rows.length > 0) {
+        sections.push({ label: room.name, rows, total: calcRoomTotal(room.id, def) });
+      }
+    });
+  });
+
+  return `<div class="min-h-screen bg-slate-100">
+    <div class="bg-gray-900 text-white pt-safe">
+      <div class="px-4 pt-3 pb-2 flex justify-between items-center">
+        <button data-action="back-to-edit" class="touch-btn text-spark-400 text-sm flex items-center gap-1 p-1.5 -ml-1 rounded-lg hover:bg-gray-800 transition-colors">
+          ${ICONS.back} Back
+        </button>
+        <p class="text-xs text-spark-400 font-semibold tracking-wider uppercase">Estimate Summary</p>
+        <button data-action="export-excel" class="touch-btn p-1.5 text-gray-400 hover:text-white transition-colors rounded-lg hover:bg-gray-800" title="Export">
+          ${ICONS.export}
+        </button>
+      </div>
+      <div class="px-4 pt-1 pb-6">
+        <p class="text-xs font-semibold tracking-widest uppercase text-spark-400">Total Estimate</p>
+        <p class="text-5xl font-bold mt-0.5 tabular-nums">${fmt$(total)}</p>
+        <p class="text-xs text-gray-400 mt-1.5">${state.currentProjectName}</p>
+      </div>
+    </div>
+    <div class="px-4 py-4 space-y-3">
+      ${sections.length === 0 ? `<div class="text-center py-16 text-gray-400 anim-fade">
+        <div class="w-16 h-16 bg-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-3">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 14h.01"/><path d="M9 17h.01"/><path d="M12 14h.01"/><path d="M12 17h.01"/><path d="M15 14h.01"/><path d="M15 17h.01"/></svg>
+        </div>
+        <p class="text-lg font-medium mb-1">No items selected yet</p>
+        <p class="text-sm">Go back and start adding repairs</p>
+      </div>`
+        : sections.map(({ label, rows, total: st }) => `
+          <div class="bg-white rounded-2xl shadow-sm overflow-hidden anim-slide-up">
+            <div class="flex justify-between items-center px-4 py-3.5 bg-gradient-to-r from-spark-50 to-white border-b border-spark-100">
+              <p class="font-bold text-gray-900">${label}</p>
+              <p class="font-bold text-spark-600 text-lg">${fmt$(st)}</p>
+            </div>
+            ${rows.map(r => {
+              const yr = r.hasYear && r.year ? `<span class="ml-1.5 px-1.5 py-0.5 bg-spark-100 text-spark-700 rounded text-xs font-medium">${r.year}</span>` : '';
+              return `<div class="flex justify-between items-center px-4 py-3 border-b border-gray-50 last:border-0">
+                <div class="flex-1 min-w-0 pr-3">
+                  <div class="flex items-center gap-1 flex-wrap"><p class="text-sm font-medium text-gray-800">${r.name}</p>${yr}</div>
+                  <p class="text-xs text-gray-400 mt-0.5">${r.qty} ${r.unit} \u00D7 $${r.cost.toLocaleString('en-US',{minimumFractionDigits:2})}</p>
+                </div>
+                <p class="text-sm font-bold text-gray-900 flex-shrink-0">${fmt$(r.total)}</p>
+              </div>`;
+            }).join('')}
+          </div>`).join('')}
+    </div>
+    <div class="px-4 pb-10 space-y-3 mt-2">
+      <button data-action="back-to-edit" class="touch-btn w-full py-4 rounded-2xl bg-gradient-to-r from-spark-500 to-spark-600 text-white font-semibold shadow-lg shadow-spark-500/25">${ICONS.back} Edit Estimate</button>
+      <button data-action="reset" class="touch-btn w-full py-4 rounded-2xl border-2 border-red-200 text-red-500 font-semibold hover:bg-red-50 transition-colors">Start New Estimate</button>
+    </div>
+  </div>`;
+}
+
+// ============================================================
+// DEAL ANALYZER
+// ============================================================
+let dealState = { arv: '', purchasePrice: '', holdingWeeks: 8, repairCost: 0 };
+
+function renderDealContent() {
+  const repairTotal = calcGrandTotal();
+  dealState.repairCost = repairTotal;
+
+  const arv = parseFloat(dealState.arv) || 0;
+  const pp = parseFloat(dealState.purchasePrice) || 0;
+  const hw = parseInt(dealState.holdingWeeks) || 0;
+  const holdingCost = hw * state.settings.holdingCostPerWeek;
+  const totalCost = pp + repairTotal + holdingCost;
+  const profit = arv - totalCost;
+  const margin = arv > 0 ? (profit / arv * 100) : 0;
+  const isGood = margin >= state.settings.targetMargin;
+  const isWarn = margin > 0 && margin < state.settings.targetMargin;
+
+  const profitClass = profit > 0 ? (isGood ? 'profit-good' : 'profit-warn') : 'profit-bad';
+
+  document.getElementById('deal-content').innerHTML = `
+    <div class="space-y-5">
+      <!-- Inputs -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-gray-500 mb-1.5 block">ARV (After Repair Value)</label>
+          <input id="deal-arv" type="number" placeholder="250000" value="${dealState.arv}"
+            class="deal-input w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base font-mono" />
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Purchase Price</label>
+          <input id="deal-pp" type="number" placeholder="150000" value="${dealState.purchasePrice}"
+            class="deal-input w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base font-mono" />
+        </div>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500 mb-1.5 block">Holding Time (weeks)</label>
+        <div class="flex items-center gap-3">
+          <input id="deal-weeks" type="range" min="0" max="52" value="${dealState.holdingWeeks}"
+            class="flex-1 h-2 bg-gray-200 rounded-full appearance-none accent-spark-500" />
+          <span class="text-sm font-mono font-semibold text-gray-700 w-12 text-right">${hw}w</span>
+        </div>
+        <p class="text-xs text-gray-400 mt-1">@ $${state.settings.holdingCostPerWeek}/week = $${holdingCost.toLocaleString()}</p>
+      </div>
+
+      <!-- Results Card -->
+      <div class="${profitClass} rounded-2xl p-5 text-white shadow-lg">
+        <p class="text-xs font-semibold uppercase tracking-wider opacity-80">Estimated Profit</p>
+        <p class="text-4xl font-bold mt-1 tabular-nums">${fmt$(profit)}</p>
+        <div class="flex items-center gap-2 mt-2">
+          <span class="text-lg font-semibold">${margin.toFixed(1)}%</span>
+          <span class="text-xs opacity-80">margin</span>
+        </div>
+        <div class="mt-3 pt-3 border-t border-white/20 flex items-center gap-2">
+          <span class="text-xs opacity-80">Target: ${state.settings.targetMargin}%</span>
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-white/20">${isGood ? 'Good Deal' : isWarn ? 'Marginal' : 'No Deal'}</span>
+        </div>
+      </div>
+
+      <!-- Breakdown -->
+      <div class="bg-gray-50 rounded-2xl p-4 space-y-2.5">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Cost Breakdown</p>
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-600">Purchase Price</span>
+          <span class="font-mono font-medium">${pp > 0 ? fmt$(pp) : '—'}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-600">Repair Costs</span>
+          <span class="font-mono font-medium text-spark-600">${fmt$(repairTotal)}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-600">Holding Costs (${hw} weeks)</span>
+          <span class="font-mono font-medium">${fmt$(holdingCost)}</span>
+        </div>
+        <div class="border-t border-gray-200 pt-2 flex justify-between text-sm font-semibold">
+          <span class="text-gray-800">Total Investment</span>
+          <span class="font-mono">${fmt$(totalCost)}</span>
+        </div>
+        <div class="flex justify-between text-sm">
+          <span class="text-gray-600">ARV (Sell Price)</span>
+          <span class="font-mono font-medium text-green-600">${arv > 0 ? fmt$(arv) : '—'}</span>
+        </div>
+      </div>
+
+      <button data-action="close-deal" class="touch-btn w-full py-3.5 rounded-2xl border-2 border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition-colors">Close</button>
+    </div>
+  `;
+
+  // Bind deal inputs
+  document.getElementById('deal-arv')?.addEventListener('input', e => { dealState.arv = e.target.value; renderDealContent(); });
+  document.getElementById('deal-pp')?.addEventListener('input', e => { dealState.purchasePrice = e.target.value; renderDealContent(); });
+  document.getElementById('deal-weeks')?.addEventListener('input', e => { dealState.holdingWeeks = e.target.value; renderDealContent(); });
+}
+</script>
+
+<script>
+// ============================================================
+// PHOTO COMPRESSION
+// ============================================================
+function compressImage(file, maxDim = 1600, quality = 0.82) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ============================================================
+// EXCEL + ZIP EXPORT
+// ============================================================
+async function exportPackage() {
+  if (typeof XLSX === 'undefined') { showToast('Export library not loaded', 'error'); return; }
+
+  const wb = XLSX.utils.book_new();
+  const ws = {};
+  let row = 0;
+  const merges = [];
+  const colWidths = [40, 16, 12, 10, 14];
+
+  const s = (font, fill, align, border) => ({
+    font: { name: 'Calibri', ...font },
+    fill: fill ? { patternType: 'solid', fgColor: { rgb: fill } } : undefined,
+    alignment: { wrapText: false, ...align },
+    border: border || undefined,
+  });
+
+  const cell = (r, c, v, style, fmt) => {
+    const addr = XLSX.utils.encode_cell({ r, c });
+    ws[addr] = { v, t: typeof v === 'number' ? 'n' : 's', s: style };
+    if (fmt) ws[addr].z = fmt;
+  };
+  const merge = (r, c1, c2) => merges.push({ s: { r, c: c1 }, e: { r, c: c2 } });
+
+  // Title
+  cell(row, 0, 'SPARK HOMES - REPAIR ESTIMATE',
+    s({ bold: true, sz: 14, color: { rgb: 'FFFFFF' } }, '111827', { horizontal: 'center', vertical: 'center' }));
+  merge(row, 0, 4); row++;
+
+  cell(row, 0, `Property: ${state.currentProjectName}    Date: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`,
+    s({ sz: 10, color: { rgb: '6B7280' } }, 'F9FAFB', { horizontal: 'center' }));
+  merge(row, 0, 4); row++;
+  row++;
+
+  const thinBorder = (col) => ({
+    top: { style: 'thin', color: { rgb: col } },
+    bottom: { style: 'thin', color: { rgb: col } },
+    left: { style: 'thin', color: { rgb: col } },
+    right: { style: 'thin', color: { rgb: col } },
+  });
+
+  let grandTotal = 0;
+
+  const processSection = (label, rows) => {
+    if (!rows.length) return;
+    cell(row, 0, label.toUpperCase(), s({ bold: true, sz: 11, color: { rgb: 'FFFFFF' } }, 'EA580C', { vertical: 'center' }));
+    for (let c = 1; c < 5; c++) cell(row, c, '', s({}, 'EA580C'));
+    merge(row, 0, 4); row++;
+
+    ['Repair Item', 'Unit', 'Unit Cost', 'Qty', 'Estimate'].forEach((h, c) =>
+      cell(row, c, h, s({ bold: true, sz: 10, color: { rgb: '374151' } }, 'FFF7ED', { horizontal: c >= 2 ? 'right' : 'left' }, thinBorder('FDBA74'))));
+    row++;
+
+    let secTotal = 0;
+    rows.forEach(r => {
+      const rowStyle = s({ sz: 10, color: { rgb: '374151' } }, 'FFFFFF', {}, thinBorder('F3F4F6'));
+      const yearStr = r.hasYear && r.year ? ` (${r.year})` : '';
+      cell(row, 0, r.name + yearStr, rowStyle);
+      cell(row, 1, r.unit, rowStyle);
+      cell(row, 2, r.cost, s({ sz: 10 }, 'FFFFFF', { horizontal: 'right' }, thinBorder('F3F4F6')), '"$"#,##0.00');
+      cell(row, 3, parseFloat(r.qty) || 0, s({ sz: 10 }, 'FFFFFF', { horizontal: 'right' }, thinBorder('F3F4F6')));
+      cell(row, 4, r.total, s({ sz: 10 }, 'FFFFFF', { horizontal: 'right' }, thinBorder('F3F4F6')), '"$"#,##0');
+      secTotal += r.total; row++;
+    });
+
+    const totStyle = s({ bold: true, sz: 10, color: { rgb: 'C2410C' } }, 'FFF7ED', {}, thinBorder('FDBA74'));
+    cell(row, 0, `${label} Total`, totStyle); merge(row, 0, 3);
+    for (let c = 1; c < 4; c++) cell(row, c, '', totStyle);
+    cell(row, 4, secTotal, s({ bold: true, sz: 10, color: { rgb: 'C2410C' } }, 'FFF7ED', { horizontal: 'right' }, thinBorder('FDBA74')), '"$"#,##0');
+    grandTotal += secTotal; row++; row++;
+  };
+
+  ROOM_TYPES.forEach(rt => {
+    const def = ROOM_DEFS[rt];
+    (state.rooms[rt] || []).forEach(room => {
+      const rows = [];
+      def.groups.forEach(g => {
+        g.items.forEach(itemId => {
+          const st = state.items[getStateKey(room.id, itemId)];
+          if (st?.checked && parseFloat(st.qty) > 0) {
+            const item = getItemDef(itemId);
+            if (item) rows.push({ name: item.name, unit: item.unit, qty: st.qty, cost: getItemCost(itemId), total: calcItemTotal(itemId, st), year: st.year, hasYear: item.hasYear });
+          }
+        });
+        const customs = state.customItems[room.id]?.[g.id] || [];
+        customs.forEach(c => {
+          const st = state.items[getStateKey(room.id, c.id)];
+          if (st?.checked && parseFloat(st.qty) > 0) {
+            rows.push({ name: c.name + ' (custom)', unit: c.unit, qty: st.qty, cost: c.cost, total: parseFloat(st.qty) * c.cost, year: '', hasYear: false });
+          }
+        });
+      });
+      processSection(room.name, rows);
+    });
+  });
+
+  // Grand total
+  cell(row, 0, 'TOTAL ESTIMATE', s({ bold: true, sz: 13, color: { rgb: 'FFFFFF' } }, '111827', { horizontal: 'center', vertical: 'center' }));
+  merge(row, 0, 3);
+  for (let c = 1; c < 4; c++) cell(row, c, '', s({}, '111827'));
+  cell(row, 4, grandTotal, s({ bold: true, sz: 13, color: { rgb: 'FFFFFF' } }, '111827', { horizontal: 'right', vertical: 'center' }), '"$"#,##0');
+
+  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: row, c: 4 } });
+  ws['!cols'] = colWidths.map(w => ({ wch: w }));
+  ws['!merges'] = merges;
+  ws['!rows'] = Array.from({ length: row + 1 }, (_, i) => ({ hpt: i === 0 ? 24 : i === 1 ? 16 : 18 }));
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Estimate');
+  const baseName = `Repair-Estimate-${state.currentProjectName.replace(/[^a-z0-9]/gi, '_')}-${new Date().toISOString().split('T')[0]}`;
+
+  const photoEntries = Object.entries(state.photos || {}).filter(([, arr]) => arr?.length > 0);
+  if (!photoEntries.length) {
+    XLSX.writeFile(wb, `${baseName}.xlsx`);
+    showToast('Excel exported!', 'success');
+    return;
+  }
+
+  if (typeof JSZip === 'undefined') { showToast('ZIP library not loaded', 'error'); return; }
+
+  const zip = new JSZip();
+  zip.file(`${baseName}.xlsx`, XLSX.write(wb, { bookType: 'xlsx', type: 'array' }));
+  const folder = zip.folder('photos');
+  photoEntries.forEach(([sKey, photos]) => {
+    const parts = sKey.split(':');
+    const roomId = parts[0];
+    const itemId = parts[1];
+    const room = Object.values(state.rooms).flat().find(r => r.id === roomId);
+    const item = getItemDef(itemId);
+    const roomName = (room?.name || roomId).replace(/[^a-z0-9]/gi, '_');
+    const itemName = (item?.name || itemId).replace(/[^a-z0-9]/gi, '_');
+    photos.forEach((ph, i) => {
+      const ext = (ph.dataUrl.split(';')[0].split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+      folder.file(`${roomName}_${itemName}_${i + 1}.${ext}`, ph.dataUrl.split(',')[1], { base64: true });
+    });
+  });
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${baseName}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  showToast('ZIP package exported!', 'success');
+}
+
+// ============================================================
+// PARTIAL IN-PLACE UPDATE
+// ============================================================
+function updateTotalsInPlace(sKey) {
+  const parts = sKey.split(':');
+  const roomId = parts[0];
+  const itemId = parts[1];
+
+  // Update the card's line total
+  const toggleBtn = document.querySelector(`[data-action="toggle-item"][data-id="${sKey}"]`);
+  const card = toggleBtn?.closest('[data-item-card]');
+  if (card) {
+    const el = card.querySelector('.font-bold.text-base.flex-shrink-0');
+    const item = getItemDef(itemId) || (state.customItems[roomId] && Object.values(state.customItems[roomId]).flat().find(c => c.id === itemId));
+    if (item) {
+      const st = state.items[sKey];
+      let total = 0;
+      if (item.cost !== undefined) total = calcItemTotal(itemId, st);
+      else if (item.cost !== undefined && st?.checked) {
+        const q = parseFloat(st.qty) || 0;
+        total = q * item.cost;
+      }
+      if (el) { el.textContent = total > 0 ? fmt$(total) : '\u2014'; el.className = `font-bold text-base flex-shrink-0 ${total > 0 ? 'text-spark-600' : 'text-gray-200'}`; }
+    }
+  }
+
+  // Update group total
+  const groupCard = toggleBtn?.closest('[data-group-card]');
+  if (groupCard) {
+    // Find which room type and group this belongs to
+    ROOM_TYPES.forEach(rt => {
+      const def = ROOM_DEFS[rt];
+      (state.rooms[rt] || []).forEach(room => {
+        def.groups.forEach(g => {
+          const gKey = `${rt}:${room.id}:${g.id}`;
+          if (groupCard.dataset.gkey === gKey) {
+            const items = getGroupItems(g);
+            const customs = state.customItems[room.id]?.[g.id] || [];
+            let groupTotal = items.reduce((sum, item) => sum + calcItemTotal(item.id, getRoomState(room.id, item.id)), 0);
+            groupTotal += customs.reduce((sum, c) => {
+              const st = state.items[getStateKey(room.id, c.id)];
+              return sum + (st?.checked && parseFloat(st.qty) > 0 ? parseFloat(st.qty) * c.cost : 0);
+            }, 0);
+            const totalEl = groupCard.querySelector('[data-group-total]');
+            if (totalEl) { totalEl.textContent = groupTotal > 0 ? fmt$(groupTotal) : '\u2014'; totalEl.className = `font-bold text-base flex-shrink-0 ml-2 ${groupTotal > 0 ? 'text-spark-600' : 'text-gray-200'}`; }
+          }
+        });
+      });
+    });
+  }
+
+  // Update header grand total
+  const hdr = document.querySelector('.text-5xl.font-bold');
+  if (hdr) hdr.textContent = fmt$(calcGrandTotal());
+
+  // Update tab total
+  const rt = ROOM_TYPES[state.currentTab];
+  const ct = calcSectionTotal(rt);
+  const tabBtn = document.querySelector(`[data-action="switch-tab"][data-index="${state.currentTab}"]`);
+  const existingSpan = tabBtn?.querySelector('span:last-child');
+  const cc = checkedCount(rt);
+  if (tabBtn) {
+    if (existingSpan) existingSpan.remove();
+    if (cc > 0) {
+      const span = document.createElement('span');
+      span.className = 'ml-1 text-xs text-spark-500 font-medium';
+      span.textContent = ct > 0 ? fmt$(ct) : cc + ' done';
+      tabBtn.appendChild(span);
+    }
+  }
+
+  // Update progress bar
+  const progress = calcProgress();
+  const bar = document.querySelector('.progress-shimmer');
+  if (bar) bar.style.width = progress.pct + '%';
+  const pctText = document.querySelector('.text-xs.text-gray-500.flex-shrink-0.tabular-nums');
+  if (pctText) pctText.textContent = progress.pct + '%';
+  const grpText = document.querySelector('.text-xs.text-gray-600.mt-1');
+  if (grpText) grpText.textContent = `${progress.checked}/${progress.total} groups reviewed`;
+}
+
+// ============================================================
+// EVENT DELEGATION
+// ============================================================
+document.body.addEventListener('click', e => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+
+  if (action === 'open-panel') { openPanel(); return; }
+  if (action === 'open-settings') { openSettings(); return; }
+  if (action === 'close-settings') { closeSettings(); return; }
+  if (action === 'export-excel') { exportPackage(); return; }
+  if (action === 'open-deal') { openDealModal(); return; }
+  if (action === 'close-deal') { closeDealModal(); return; }
+  if (action === 'show-summary') { state.showSummary = true; saveCurrentState(); render(); return; }
+  if (action === 'back-to-edit') { state.showSummary = false; render(); return; }
+  if (action === 'open-photo-viewer') { openPhotoViewer(btn.dataset.src); return; }
+  if (action === 'close-photo') { closePhotoViewer(); return; }
+
+  if (action === 'toggle-item') {
+    const sKey = btn.dataset.id;
+    const s = state.items[sKey] || blankState();
+    s.checked = !s.checked;
+    if (!s.checked) { s.qty = ''; s.year = ''; }
+    else if (getItemDef(btn.dataset.item)?.defaultQty) { s.qty = getItemDef(btn.dataset.item).defaultQty; }
+    state.items[sKey] = s;
+    saveCurrentState(); render();
+    if (s.checked) {
+      setTimeout(() => document.querySelector(`[data-action="update-qty"][data-id="${sKey}"]`)?.focus(), 100);
+    }
+    return;
+  }
+
+  if (action === 'switch-tab') {
+    state.currentTab = parseInt(btn.dataset.index);
+    state._currentSubTab = 0;
+    render();
+    document.getElementById('scroll-area')?.scrollTo(0, 0);
+    return;
+  }
+
+  if (action === 'prev-tab') {
+    state.currentTab = Math.max(0, state.currentTab - 1);
+    state._currentSubTab = 0;
+    render(); document.getElementById('scroll-area')?.scrollTo(0, 0); return;
+  }
+
+  if (action === 'next-tab') {
+    state.currentTab = Math.min(SECTION_TABS.length - 1, state.currentTab + 1);
+    state._currentSubTab = 0;
+    render(); document.getElementById('scroll-area')?.scrollTo(0, 0); return;
+  }
+
+  if (action === 'toggle-group') {
+    const gKey = btn.dataset.gkey;
+    const scrollEl = document.getElementById('scroll-area');
+    const scrollTop = scrollEl ? scrollEl.scrollTop : 0;
+    state.expandedGroups[gKey] = !state.expandedGroups[gKey];
+    render();
+    if (scrollEl) requestAnimationFrame(() => scrollEl.scrollTo(0, scrollTop));
+    return;
+  }
+
+  if (action === 'switch-sub') {
+    state._currentSubTab = parseInt(btn.dataset.index);
+    render(); document.getElementById('scroll-area')?.scrollTo(0, 0); return;
+  }
+
+  if (action === 'edit-room-name') {
+    const roomType = btn.dataset.room;
+    const idx = parseInt(btn.dataset.index);
+    openModal('Rename Room', 'e.g. Master Bath', state.rooms[roomType][idx].name, name => {
+      state.rooms[roomType][idx].name = name;
+      saveCurrentState(); render();
+    });
+    return;
+  }
+
+  if (action === 'add-room') {
+    const rt = btn.dataset.room;
+    const def = ROOM_DEFS[rt];
+    const id = `${rt}_${Date.now()}`;
+    const name = `${def.name} ${state.rooms[rt].length + 1}`;
+    state.rooms[rt].push({ id, name });
+    // Init state for new room's items
+    def.groups.forEach(g => {
+      g.items.forEach(itemId => {
+        state.items[getStateKey(id, itemId)] = blankState();
+      });
+    });
+    state._currentSubTab = state.rooms[rt].length - 1;
+    saveCurrentState(); render();
+    showToast(`${name} added`, 'success');
+    return;
+  }
+
+  if (action === 'remove-room') {
+    const rt = btn.dataset.room;
+    const idx = parseInt(btn.dataset.index);
+    const room = state.rooms[rt][idx];
+    if (!confirm(`Remove "${room.name}"? All entries will be lost.`)) return;
+    // Clean up state
+    const def = ROOM_DEFS[rt];
+    def.groups.forEach(g => {
+      g.items.forEach(itemId => { delete state.items[getStateKey(room.id, itemId)]; });
+    });
+    if (state.customItems[room.id]) delete state.customItems[room.id];
+    state.rooms[rt].splice(idx, 1);
+    state._currentSubTab = Math.min(state._currentSubTab || 0, state.rooms[rt].length - 1);
+    saveCurrentState(); render();
+    showToast('Room removed', 'info');
+    return;
+  }
+
+  if (action === 'rename-project') {
+    openModal('Rename Project', 'e.g. 123 Main St', state.currentProjectName, name => {
+      state.currentProjectName = name;
+      saveCurrentState(); render();
+    });
+    return;
+  }
+
+  if (action === 'add-photo') {
+    const sKey = btn.dataset.id;
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.capture = 'environment';
+    input.style.cssText = 'position:fixed;top:-999px;opacity:0';
+    document.body.appendChild(input);
+    input.onchange = async () => {
+      document.body.removeChild(input);
+      if (!input.files || !input.files.length) return;
+      if (!state.photos[sKey]) state.photos[sKey] = [];
+      for (const file of Array.from(input.files)) {
+        const dataUrl = await compressImage(file);
+        state.photos[sKey].push({ name: file.name, dataUrl });
+      }
+      saveCurrentState(); render();
+      showToast(`${input.files.length} photo(s) added`, 'success');
+    };
+    input.click();
+    return;
+  }
+
+  if (action === 'remove-photo') {
+    const sKey = btn.dataset.id;
+    const idx = parseInt(btn.dataset.index);
+    if (state.photos[sKey]) state.photos[sKey].splice(idx, 1);
+    scheduleSave(); render();
+    return;
+  }
+
+  if (action === 'add-custom-item') {
+    const roomId = btn.dataset.room;
+    const groupId = btn.dataset.group;
+    openAddItemModal(roomId, groupId);
+    return;
+  }
+
+  if (action === 'delete-custom') {
+    const roomId = btn.dataset.room;
+    const groupId = btn.dataset.group;
+    const itemId = btn.dataset.item;
+    const sKey = btn.dataset.skey;
+    if (state.customItems[roomId]?.[groupId]) {
+      state.customItems[roomId][groupId] = state.customItems[roomId][groupId].filter(c => c.id !== itemId);
+    }
+    delete state.items[sKey];
+    saveCurrentState(); render();
+    showToast('Custom item deleted', 'info');
+    return;
+  }
+
+  if (action === 'reset') {
+    if (!confirm('Start a new estimate? All entries will be cleared.')) return;
+    initState();
+    state.currentProjectId = `proj_${Date.now()}`;
+    state.currentProjectName = 'New Estimate';
+    state.priceOverrides = loadPriceOverrides();
+    saveCurrentState();
+    render();
+    showToast('New estimate started', 'success');
+    return;
+  }
+});
+
+// Input events
+document.body.addEventListener('input', e => {
+  const qtyEl = e.target.closest('[data-action="update-qty"]');
+  if (qtyEl) {
+    state.items[qtyEl.dataset.id].qty = qtyEl.value;
+    updateTotalsInPlace(qtyEl.dataset.id);
+    scheduleSave(); return;
+  }
+  const yrEl = e.target.closest('[data-action="update-year"]');
+  if (yrEl) { state.items[yrEl.dataset.id].year = yrEl.value; scheduleSave(); return; }
+});
+
+// Panel buttons (outside #app)
+document.getElementById('close-panel-btn').addEventListener('click', closePanel);
+document.getElementById('panel-overlay').addEventListener('click', closePanel);
+document.getElementById('new-project-btn').addEventListener('click', () => {
+  closePanel();
+  openModal('New Project', 'e.g. 123 Main St', '', name => {
+    saveCurrentState();
+    state.currentProjectId = `proj_${Date.now()}`;
+    state.currentProjectName = name;
+    initState();
+    saveCurrentState();
+    render();
+    showToast('Project created', 'success');
+  });
+});
+
+// Settings
+document.getElementById('settings-bg').addEventListener('click', closeSettings);
+document.getElementById('settings-close').addEventListener('click', closeSettings);
+document.getElementById('price-csv-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const rows = parseCSV(ev.target.result);
+    let updated = 0;
+    rows.forEach(r => {
+      const id = r.id?.trim();
+      const cost = parseFloat(r.cost);
+      if (id && !isNaN(cost) && cost >= 0) { state.priceOverrides[id] = cost; updated++; }
+    });
+    savePriceOverrides();
+    refreshPriceStatus();
+    render();
+    showToast(`${updated} price${updated !== 1 ? 's' : ''} updated`, 'success');
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+document.getElementById('reset-prices-btn').addEventListener('click', () => {
+  if (!confirm('Reset all prices to defaults?')) return;
+  state.priceOverrides = {};
+  savePriceOverrides();
+  refreshPriceStatus();
+  render();
+  showToast('Prices reset to defaults', 'info');
+});
+
+// Modal buttons
+document.getElementById('modal-confirm').addEventListener('click', confirmModal);
+document.getElementById('modal-cancel').addEventListener('click', closeModal);
+document.getElementById('modal-bg').addEventListener('click', closeModal);
+document.getElementById('modal-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') confirmModal();
+  if (e.key === 'Escape') closeModal();
+});
+
+// Add item modal
+document.getElementById('add-item-close').addEventListener('click', () => document.getElementById('add-item-modal').classList.add('hidden'));
+document.getElementById('add-item-bg').addEventListener('click', () => document.getElementById('add-item-modal').classList.add('hidden'));
+document.getElementById('add-item-confirm').addEventListener('click', confirmAddItem);
+
+// Deal modal
+document.getElementById('deal-bg').addEventListener('click', closeDealModal);
+document.getElementById('deal-close').addEventListener('click', closeDealModal);
+
+// Photo modal
+document.getElementById('photo-close').addEventListener('click', closePhotoViewer);
+
+// ============================================================
+// BOOT
+// ============================================================
+(function boot() {
+  state.priceOverrides = loadPriceOverrides();
+  const settings = loadSettings();
+  if (settings.holdingCostPerWeek) state.settings.holdingCostPerWeek = settings.holdingCostPerWeek;
+  if (settings.targetMargin) state.settings.targetMargin = settings.targetMargin;
+
+  const projects = loadProjects();
+  if (projects.length > 0) {
+    loadProjectIntoState(projects[0]);
+  } else {
+    state.currentProjectId = `proj_${Date.now()}`;
+    state.currentProjectName = 'New Estimate';
+    initState();
+    saveCurrentState();
+  }
+  render();
+
+  // Auto-save on visibility change
+  window.addEventListener('visibilitychange', () => { if (document.hidden) saveCurrentState(); });
+  window.addEventListener('pagehide', saveCurrentState);
+})();
+</script>
+</body>
+</html>
